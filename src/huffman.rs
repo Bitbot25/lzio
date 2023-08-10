@@ -37,18 +37,16 @@ struct HeapData {
 }
 
 #[derive(Clone)]
-pub struct Hf<'bump> {
-    heap: BinaryHeap<HeapData, &'bump Bump>,
-    arena: Vec<HfNode, &'bump Bump>,
-    alloc: &'bump Bump,
+pub struct Hf {
+    heap: BinaryHeap<HeapData>,
+    arena: Vec<HfNode>,
 }
 
-impl<'bump> Hf<'bump> {
-    pub fn new_in(alloc: &'bump Bump) -> Self {
+impl Hf {
+    pub fn new() -> Self {
         Self {
-            heap: BinaryHeap::new_in(alloc),
-            arena: Vec::new_in(alloc),
-	    alloc
+            heap: BinaryHeap::new(),
+            arena: Vec::new(),
         }
     }
 
@@ -68,13 +66,13 @@ impl<'bump> Hf<'bump> {
         nsym
     }
 
-    pub fn solve(mut self) -> HfTree<'bump> {
+    pub fn solve(mut self) -> HfTree {
         let lfcnt = self.arena.len();
 
         let root = loop {
             let left = match self.heap.pop() {
                 Some(left) => left,
-                None => return HfTree::new(self.alloc, 0, self.arena, lfcnt), //self.arena.to_vec(), lfcnt)
+                None => return HfTree::new(0, self.arena, lfcnt), //self.arena.to_vec(), lfcnt)
             };
 
             let right = match self.heap.pop() {
@@ -100,35 +98,35 @@ impl<'bump> Hf<'bump> {
             });
         };
 
-        HfTree::new(self.alloc, root.arena, self.arena, lfcnt)
+        HfTree::new(root.arena, self.arena, lfcnt)
     }
 }
 
 #[cfg(feature = "unstable")]
-pub struct HfTree<'alloc> {
+pub struct HfTree {
     root: usize,
-    arena: Vec<HfNode, &'alloc Bump>,
+    arena: Vec<HfNode>,
     /// Maps symbols to huffman code
-    symtc: Vec<BitVec, &'alloc Bump>,
+    symtc: Vec<BitVec>,
 }
 
 #[cfg(not(all(feature = "unstable", feature = "bump")))]
 compile_error! { "Stable HfTree is a work-in-progress" }
 
-impl<'alloc> HfTree<'alloc> {
-    pub fn new(alloc: &'alloc Bump, root: usize, arena: Vec<HfNode, &'alloc Bump>, lfcnt: usize) -> Self {
+impl HfTree {
+    pub fn new(root: usize, arena: Vec<HfNode>, lfcnt: usize) -> Self {
         debug_assert!(lfcnt <= arena.len());
 
         if lfcnt == 0 {
             return Self {
                 root,
                 arena,
-                symtc: Vec::new_in(alloc),
+                symtc: Vec::new(),
             };
         }
 
         //let mut stack = SmallVec::<[(usize, BitVec); 256]>::new();
-	let mut stack = Vec::new_in(alloc);
+	let mut stack = Vec::new();
         stack.push((root, BitVec::new()));
 
         /* ------------------------------------------------------------------------- */
@@ -143,7 +141,7 @@ impl<'alloc> HfTree<'alloc> {
 	
         #[cfg(feature = "unsafe")]
         let mut symtc: Vec<BitVec, _> = {
-            let mut symtc = Vec::with_capacity_in(lfcnt, alloc);
+            let mut symtc = Vec::with_capacity(lfcnt);
             unsafe {
                 symtc.set_len(lfcnt);
                 symtc
@@ -152,7 +150,7 @@ impl<'alloc> HfTree<'alloc> {
 
         #[cfg(not(feature = "unsafe"))]
         let mut symtc = {
-	    let mut symtc = Vec::new_in(alloc);
+	    let mut symtc = Vec::new(alloc);
 	    symtc.extend(std::iter::repeat_with(BitVec::new).take(lfcnt));
 	    symtc
 	};
@@ -205,7 +203,7 @@ impl<'alloc> HfTree<'alloc> {
 }
 
 pub struct HfEncoder<'a, I: Iterator<Item = u8>> {
-    tree: &'a HfTree<'a>,
+    tree: &'a HfTree,
     input: I,
 }
 
@@ -219,7 +217,7 @@ impl<'a, I: Iterator<Item = u8>> Iterator for HfEncoder<'a, I> {
 }
 
 pub struct HfDecoder<'a, I: Iterator<Item = bool>> {
-    tree: &'a HfTree<'a>,
+    tree: &'a HfTree,
     input: I,
 }
 

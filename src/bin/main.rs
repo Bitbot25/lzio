@@ -2,8 +2,7 @@ use bumpalo::Bump;
 use lzio::huffman::*;
 
 fn main() {
-    let bump = Bump::new();
-    let mut hf = Hf::new_in(&bump);
+    let mut hf = Hf::new();
     let freqs = [10, 4, 1, 7, 18, 1, 5, 25];
     for freq in freqs.into_iter() {
         hf.push(freq);
