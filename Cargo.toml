@@ -1,0 +1,30 @@
+[package]
+name = "lzio"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+bitvec = "1.0.1"
+bytes = "1.4.0"
+petgraph = "0.6.3"
+smallvec = "1.11.0"
+unsafekit = { path = "../unsafekit" }
+bumpalo = { version = "3.13.0", optional = true }
+
+[features]
+default = ["bump", "unstable", "unsafe"]
+unsafe = ["unsafekit/unsafe"]
+unstable = ["bumpalo/allocator_api"]
+bump = [ "bumpalo", "unstable" ]
+
+[dev-dependencies]
+criterion = "0.5.1"
+
+[[bench]]
+name = "huffman"
+harness = false
+
+[profile.release]
+debug = true
