@@ -1,12 +1,7 @@
-use std::alloc::{Global, Allocator};
-use std::cmp::Reverse;
-use std::collections::BinaryHeap;
-use std::ops::{Deref, Index, IndexMut};
-use std::slice::SliceIndex;
 
 use bitvec::vec::BitVec;
-use bumpalo::Bump;
-use smallvec::{Array, SmallVec};
+use std::cmp::Reverse;
+use std::collections::BinaryHeap;
 
 #[derive(Clone, Copy, Debug)]
 struct HfInternal {
@@ -15,7 +10,7 @@ struct HfInternal {
 
 #[derive(Clone, Copy, Debug)]
 struct HfLeaf {
-    sym: u8,
+    sym: u32,
 }
 
 #[derive(Clone, Debug)]
@@ -53,7 +48,7 @@ impl Hf {
     /// Pushes a new symbol with the specified frequency.
     /// The returned symbol id is guaranteed to be sequential, meaning it always
     /// increases with one for each new symbol.
-    pub fn push(&mut self, freq: u32) -> u8 {
+    pub fn push(&mut self, freq: u32) -> u32 {
         let nsym = self.arena.len().try_into().unwrap();
         self.heap.push(HeapData {
             arena: self.arena.len(),
@@ -72,7 +67,7 @@ impl Hf {
         let root = loop {
             let left = match self.heap.pop() {
                 Some(left) => left,
-                None => return HfTree::new(0, self.arena, lfcnt), //self.arena.to_vec(), lfcnt)
+                None => return HfTree::new(0, self.arena, lfcnt),
             };
 
             let right = match self.heap.pop() {
@@ -102,16 +97,12 @@ impl Hf {
     }
 }
 
-#[cfg(feature = "unstable")]
 pub struct HfTree {
     root: usize,
     arena: Vec<HfNode>,
     /// Maps symbols to huffman code
     symtc: Vec<BitVec>,
 }
-
-#[cfg(not(all(feature = "unstable", feature = "bump")))]
-compile_error! { "Stable HfTree is a work-in-progress" }
 
 impl HfTree {
     pub fn new(root: usize, arena: Vec<HfNode>, lfcnt: usize) -> Self {
@@ -125,8 +116,7 @@ impl HfTree {
             };
         }
 
-        //let mut stack = SmallVec::<[(usize, BitVec); 256]>::new();
-	let mut stack = Vec::new();
+        let mut stack = Vec::new();
         stack.push((root, BitVec::new()));
 
         /* ------------------------------------------------------------------------- */
@@ -138,9 +128,9 @@ impl HfTree {
         // But, if we already have to cache the leaf nodes, we might aswell cache their
         // huffman code instead, which is what we're doing here.
         /* ------------------------------------------------------------------------- */
-	
+
         #[cfg(feature = "unsafe")]
-        let mut symtc: Vec<BitVec, _> = {
+        let mut symtc: Vec<BitVec> = {
             let mut symtc = Vec::with_capacity(lfcnt);
             unsafe {
                 symtc.set_len(lfcnt);
@@ -150,10 +140,10 @@ impl HfTree {
 
         #[cfg(not(feature = "unsafe"))]
         let mut symtc = {
-	    let mut symtc = Vec::new(alloc);
-	    symtc.extend(std::iter::repeat_with(BitVec::new).take(lfcnt));
-	    symtc
-	};
+            let mut symtc = Vec::with_capacity(lfcnt);
+            symtc.extend(std::iter::repeat_with(BitVec::new).take(lfcnt));
+            symtc
+        };
 
         while let Some((ndx, code)) = stack.pop() {
             let nd = unsafekit::arrayget!(arena, ndx);
@@ -176,7 +166,7 @@ impl HfTree {
                         std::ptr::write(bsp.add(leaf.sym as usize), code);
                     }
 
-		    #[cfg(not(feature = "unsafe"))]
+                    #[cfg(not(feature = "unsafe"))]
                     {
                         symtc[leaf.sym as usize] = code;
                     }
@@ -187,7 +177,7 @@ impl HfTree {
         Self { root, arena, symtc }
     }
 
-    pub fn encoder<I: IntoIterator<Item = u8>>(&self, iter: I) -> HfEncoder<I::IntoIter> {
+    pub fn encoder<I: IntoIterator<Item = u32>>(&self, iter: I) -> HfEncoder<I::IntoIter> {
         HfEncoder {
             tree: self,
             input: iter.into_iter(),
@@ -202,12 +192,12 @@ impl HfTree {
     }
 }
 
-pub struct HfEncoder<'a, I: Iterator<Item = u8>> {
+pub struct HfEncoder<'a, I: Iterator<Item = u32>> {
     tree: &'a HfTree,
     input: I,
 }
 
-impl<'a, I: Iterator<Item = u8>> Iterator for HfEncoder<'a, I> {
+impl<'a, I: Iterator<Item = u32>> Iterator for HfEncoder<'a, I> {
     type Item = BitVec;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -222,7 +212,7 @@ pub struct HfDecoder<'a, I: Iterator<Item = bool>> {
 }
 
 impl<'a, I: Iterator<Item = bool>> Iterator for HfDecoder<'a, I> {
-    type Item = u8;
+    type Item = u32;
 
     fn next(&mut self) -> Option<Self::Item> {
         let mut int = self.tree.arena.get(self.tree.root)?;
@@ -245,8 +235,7 @@ mod tests {
 
     #[test]
     fn test_huffman() {
-	let bump = Bump::new();
-        let mut hf = Hf::new_in(&bump);
+        let mut hf = Hf::new();
         let freqs = [10, 4, 1, 7, 18, 1, 5, 25];
         for freq in freqs.into_iter() {
             hf.push(freq);
@@ -254,7 +243,7 @@ mod tests {
 
         let tree = hf.solve();
 
-        let input = [0, 1, 2, 5];
+        let input = [0u32, 1, 2, 5];
         let encoded: Vec<_> = tree.encoder(input.iter().copied()).collect();
         let output: Vec<_> = tree.decoder(encoded.into_iter().flatten()).collect();
 

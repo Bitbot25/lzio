@@ -11,13 +11,11 @@ bytes = "1.4.0"
 petgraph = "0.6.3"
 smallvec = "1.11.0"
 unsafekit = { path = "../unsafekit" }
-bumpalo = { version = "3.13.0", optional = true }
+rand = "0.8.5"
 
 [features]
-default = ["bump", "unstable", "unsafe"]
+default = []
 unsafe = ["unsafekit/unsafe"]
-unstable = ["bumpalo/allocator_api"]
-bump = [ "bumpalo", "unstable" ]
 
 [dev-dependencies]
 criterion = "0.5.1"
