@@ -1,7 +1,7 @@
-
 use bitvec::vec::BitVec;
 use std::cmp::Reverse;
 use std::collections::BinaryHeap;
+use std::mem;
 
 #[derive(Clone, Copy, Debug)]
 struct HfInternal {
@@ -61,6 +61,27 @@ impl Hf {
         nsym
     }
 
+    pub fn estimate_memory(syms: usize) -> usize {
+	// Heap size will never be larger
+	let max_heapsz = syms;
+	let mut heapsz = max_heapsz;
+
+	let mut arenasz = syms;
+
+	loop {
+	    if heapsz < 2 {
+		break;
+	    }
+
+	    heapsz -= 1; // -2 + 1
+	    arenasz += 1;
+	}
+
+	arenasz * mem::size_of::<HfNode>()
+	    + max_heapsz * mem::size_of::<HeapData>()
+	    + HfTree::estimate_memory(arenasz, syms)
+    }
+
     pub fn solve(mut self) -> HfTree {
         let lfcnt = self.arena.len();
 
@@ -105,6 +126,25 @@ pub struct HfTree {
 }
 
 impl HfTree {
+    pub fn estimate_memory(nodecnt: usize, syms: usize) -> usize {
+	let mut stacklen = 1;
+	let mut internal_cnt = nodecnt - syms;
+
+	while stacklen != 0 {
+	    stacklen -= 1;
+
+	    if internal_cnt > 0 {
+		internal_cnt -= 1;
+		stacklen += 2;
+	    }
+	}
+
+	// size of symtc
+	syms * mem::size_of::<BitVec>() * (syms - 1)
+	    // size of intermediary stack
+	    + stacklen * mem::size_of::<(usize, BitVec)>()
+    }
+    
     pub fn new(root: usize, arena: Vec<HfNode>, lfcnt: usize) -> Self {
         debug_assert!(lfcnt <= arena.len());
 
@@ -146,7 +186,7 @@ impl HfTree {
         };
 
         while let Some((ndx, code)) = stack.pop() {
-            let nd = unsafekit::arrayget!(arena, ndx);
+            let nd = &arena[ndx];
             match &nd.kind {
                 HfNodeKind::Internal(int) => {
                     let mut lc = code.clone();

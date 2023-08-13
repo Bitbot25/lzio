@@ -12,6 +12,9 @@ fn main() {
     let tree = hf.solve();
 
     lz77::lz77(&[20, 0, 20, 0]);
+    lz77::lz77(&[40, 10, 20, 50, 10, 20]);
+
+    eprintln!("estimated size of huffman: {}", Hf::estimate_memory(10_000));
 
     /*let input = [0, 1, 2, 5];
     let encoded: Vec<_> = tree.encoder(input.iter().copied()).collect();

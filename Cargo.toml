@@ -8,20 +8,20 @@ edition = "2021"
 [dependencies]
 bitvec = "1.0.1"
 bytes = "1.4.0"
-petgraph = "0.6.3"
 smallvec = "1.11.0"
-unsafekit = { path = "../unsafekit" }
+# unsafekit = { path = "../unsafekit" }
 rand = "0.8.5"
 
 [features]
 default = []
-unsafe = ["unsafekit/unsafe"]
+# unsafe = []
+# unsafe = ["unsafekit/unsafe"]
 
 [dev-dependencies]
 criterion = "0.5.1"
 
 [[bench]]
-name = "huffman"
+name = "deflate"
 harness = false
 
 [profile.release]

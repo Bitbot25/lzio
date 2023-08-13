@@ -48,12 +48,14 @@ fn strmatch(a: &[u8], b: &[u8]) -> usize {
 // O(nm)
 pub fn naive_substrmatch(search: &[u8], lookahead: &[u8]) -> Backref {
     let mut best = Backref { offset: 0, length: 0 };
-    let mut offset = 0;
+    let mut offset = 1;
     let n = search.len();
 
-    while offset < n {
-	let slice = &search[n - offset..];
+    // eprintln!("\nsubstrmatch(win={search:?}, lookahead={lookahead:?}");
+    while offset <= n {
+	let slice = &search[n - offset..n];
 	let nmatch = strmatch(slice, lookahead);
+	// eprintln!("  strmatch(win={slice:?}, lookahead={lookahead:?}) = {nmatch}");
 	if nmatch > best.length {
 	    best.offset = offset;
 	    best.length = nmatch;
@@ -72,17 +74,16 @@ pub fn lz77(source: &[u8]) {
     let n = source.len();
     while pivot < n {
 	let (window, lookahead) = source.split_at(pivot);
-	//dbg!(lookahead[0]);
 	let m: Backref = lzmatch(window, lookahead);
-	let advance = if m.length != 0 {
-	    // Insert a back reference
-	    eprint!("[<- {}; {}]", m.offset, m.length);
-	    m.length
-	} else {
-	    eprint!(",{}", lookahead[0]);
-	    1
-	};
-	pivot += advance;
+        let advance = if m.length != 0 {
+            // Insert a back reference
+            eprint!("[<- {}; {}]", m.offset, m.length);
+            m.length
+        } else {
+            eprint!(",{}", lookahead[0]);
+            1
+        };
+        pivot += advance;
     }
     eprintln!();
 }
